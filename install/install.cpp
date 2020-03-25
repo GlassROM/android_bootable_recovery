@@ -184,8 +184,31 @@ static int CheckAbSpecificMetadata(const std::map<std::string, std::string>& met
 
 int CheckPackageMetadata(const std::map<std::string, std::string>& metadata, OtaType ota_type) {
   auto device = android::base::GetProperty("ro.product.device", "");
+  auto device1 = android::base::GetProperty("ro.product.model", "");
+  auto device2 = android::base::GetProperty("ro.product.name", "");
   auto pkg_device = get_value(metadata, "pre-device");
-  if (pkg_device != device || pkg_device.empty()) {
+  bool found = false;
+  //split pkg_device if there are ,
+  // for instance oneplus3,OnePlus3 or guacamole,OnePlus7pro in TARGET_OTA_ASSERT_DEVICE
+  if(std::strstr(pkg_device.c_str(), ",")) {
+    std::vector<std::string> assertResults = android::base::Split(pkg_device, ",");
+    // iterate through the entire vector and do a simple compare
+    for(const std::string& deviceAssert : assertResults) {
+      std::string assertName = android::base::Trim(deviceAssert);
+      // make sure we verify all asserts
+      if ((assertName == device || assertName == device1 || assertName == device2) && !assertName.empty()) {
+	found = true;
+	break;
+      }
+    } // for(const std::string& deviceAssert : assertResults)
+  } // if(std::strstr(pkg_device.....
+  // i left the original code for two reasons:
+  // first, the above code should not execute at all if the condition is false
+  // second, changing what works is a terrible idea, the only modification i did is added in more checks
+  // the original modifications were made by mauronofrio and hernan, i just ported them to q
+  // see https://github.com/mauronofrio/android_bootable_recovery/commit/c74fbf9d0b9053f07d8692b04d55fa28af46fc70
+  // and https://github.com/mauronofrio/android_bootable_recovery/commit/c7a680468a06af8527fadffdb51afce27d0ebccb
+  if (((pkg_device != device && pkg_device != device1 && pkg_device != device2) || pkg_device.empty()) && !found) {
     LOG(ERROR) << "Package is for product " << pkg_device << " but expected " << device;
     return INSTALL_ERROR;
   }
