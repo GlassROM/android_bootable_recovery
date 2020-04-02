@@ -186,6 +186,15 @@ bool ask_to_continue_unverified(Device* device) {
   }
 }
 
+bool ask_to_continue_downgrade(Device* device) {
+  if (get_build_type() == "user") {
+    return false;
+  } else {
+    ui->SetProgressType(RecoveryUI::EMPTY);
+    return yes_no(device, "This package will downgrade your system", "Install anyway?");
+  }
+}
+
 static bool ask_to_wipe_data(Device* device) {
   std::vector<std::string> headers{ "Wipe all user data?", "  THIS CAN NOT BE UNDONE!" };
   std::vector<std::string> items{ " Cancel", " Factory data reset" };
@@ -506,16 +515,18 @@ static Device::BuiltinAction prompt_and_wait(Device* device, int status) {
     }
     ui->SetProgressType(RecoveryUI::EMPTY);
 
+change_menu:
     size_t chosen_item = ui->ShowMenu(
-        {}, device->GetMenuItems(), 0, false,
+        device->GetMenuHeaders(), device->GetMenuItems(), 0, false,
         std::bind(&Device::HandleMenuKey, device, std::placeholders::_1, std::placeholders::_2));
     // Handle Interrupt key
     if (chosen_item == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
       return Device::KEY_INTERRUPTED;
     }
-    // We are already in the main menu
+
     if (chosen_item == Device::kGoBack || chosen_item == Device::kGoHome) {
-      continue;
+      device->GoHome();
+      goto change_menu;
     }
 
     // Device-specific code may take some action here. It may return one of the core actions
@@ -526,6 +537,12 @@ static Device::BuiltinAction prompt_and_wait(Device* device, int status) {
             : device->InvokeMenuItem(chosen_item);
 
     switch (chosen_action) {
+      case Device::MENU_BASE:
+      case Device::MENU_UPDATE:
+      case Device::MENU_WIPE:
+      case Device::MENU_ADVANCED:
+        goto change_menu;
+
       case Device::NO_ACTION:
         break;
 
@@ -910,7 +927,7 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
       }
 
       status = install_package(update_package, should_wipe_cache, true, retry_count,
-                               true /* verify */, ui);
+                               true /* verify */, false /* allow_ab_downgrade */, ui);
       if (status != INSTALL_SUCCESS) {
         ui->Print("Installation aborted.\n");
 
