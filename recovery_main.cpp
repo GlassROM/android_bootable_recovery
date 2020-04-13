@@ -188,6 +188,7 @@ static std::string load_locale_from_cache() {
 }
 
 static void copy_userdata_files() {
+  android::base::SetLogger(android::base::StdioLogger);
   if (ensure_path_mounted("/data") == 0) {
     if (access(adb_keys_root, F_OK) != 0) {
       if (access(adb_keys_data, R_OK) == 0) {
@@ -199,6 +200,7 @@ static void copy_userdata_files() {
     }
     ensure_path_unmounted("/data");
   }
+  android::base::SetLogger(UiLogger);
 }
 
 // Sets the usb config to 'state'.
@@ -456,6 +458,10 @@ int main(int argc, char** argv) {
     device->RemoveMenuItemForAction(Device::RUN_GRAPHICS_TEST);
     device->RemoveMenuItemForAction(Device::RUN_LOCALE_TEST);
     device->RemoveMenuItemForAction(Device::ENTER_RESCUE);
+  }
+
+  if (get_build_type() != "userdebug") {
+    device->RemoveMenuItemForAction(Device::ENABLE_ADB);
   }
 
   if (get_build_type() == "user") {
