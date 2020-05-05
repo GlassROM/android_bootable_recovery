@@ -201,8 +201,8 @@ bool ask_to_continue_downgrade(Device* device) {
 }
 
 static bool ask_to_wipe_data(Device* device) {
-  std::vector<std::string> headers{ "Wipe all user data?", "  THIS CAN NOT BE UNDONE!" };
-  std::vector<std::string> items{ " Cancel", " Factory data reset" };
+  std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
+  std::vector<std::string> items{ " Cancel", " Format data" };
 
   size_t chosen_item = ui->ShowMenu(
       headers, items, 0, true,
@@ -243,6 +243,10 @@ static int apply_update_menu(Device* device, RecoveryUI* ui, Device::BuiltinActi
     if (chosen == Device::kGoBack) {
       break;
     }
+    if (chosen == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
+      return Device::KEY_INTERRUPTED;
+    }
+
     if (chosen == item_sideload) {
       status = ApplyFromAdb(device, false /* rescue_mode */, reboot_action);
     } else {
@@ -616,7 +620,7 @@ change_menu:
       case Device::WIPE_CACHE: {
         save_current_log = true;
         std::function<bool()> confirm_func = [&device]() {
-          return yes_no(device, "Wipe cache?", "  THIS CAN NOT BE UNDONE!");
+          return yes_no(device, "Format cache?", "  THIS CAN NOT BE UNDONE!");
         };
         WipeCache(ui, ui->IsTextVisible() ? confirm_func : nullptr);
         if (!ui->IsTextVisible()) return Device::NO_ACTION;
@@ -626,7 +630,7 @@ change_menu:
       case Device::WIPE_SYSTEM: {
         save_current_log = true;
         std::function<bool()> confirm_func = [&device]() {
-          return yes_no(device, "Wipe system?", "  THIS CAN NOT BE UNDONE!");
+          return yes_no(device, "Format system?", "  THIS CAN NOT BE UNDONE!");
         };
         WipeSystem(ui, ui->IsTextVisible() ? confirm_func : nullptr);
         if (!ui->IsTextVisible()) return Device::NO_ACTION;
